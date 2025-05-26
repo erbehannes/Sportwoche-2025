@@ -1,3 +1,22 @@
+// Firebase Imports
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
+import { getDatabase, ref, onValue, set, push } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
+
+// Firebase Config
+const firebaseConfig = {
+  apiKey: "AIzaSyBvDHcYfeQdIwmXd3qnF97K-PQKH4NICf0",
+  authDomain: "sportwoche-sv-langen.firebaseapp.com",
+  projectId: "sportwoche-sv-langen",
+  storageBucket: "sportwoche-sv-langen.firebasestorage.app",
+  messagingSenderId: "529824987070",
+  appId: "1:529824987070:web:d8933f03fdd1a74598abef"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+// Event-Definitionen
 const events = {
   "Dienstag, 15.07.2025": [
     { time: "19:00", title: "Herrenspiele höhere Klassen" },
@@ -52,9 +71,7 @@ function renderPlan() {
     dayCard.appendChild(dayHeader);
 
     list.forEach((item, i) => {
-      const key = `${day}-${i}`;
-      const store = JSON.parse(localStorage.getItem(key)) || { person: "", notes: [] };
-
+      const eventKey = `${day.replace(/[\s,]/g, '_')}_${i}`;
       const eventEl = document.createElement('div');
       eventEl.className = 'event';
 
@@ -68,7 +85,6 @@ function renderPlan() {
       const responsible = document.createElement('input');
       responsible.type = 'text';
       responsible.placeholder = 'Verantwortlich';
-      responsible.value = store.person || '';
 
       const note = document.createElement('textarea');
       note.placeholder = 'Neue Notiz';
@@ -78,21 +94,41 @@ function renderPlan() {
 
       const notes = document.createElement('div');
       notes.className = 'notes';
-      store.notes.forEach(n => {
-        const p = document.createElement('div');
-        p.className = 'note-entry';
-        p.innerHTML = `<strong>${formatTime(n.timestamp)}:</strong> ${n.text}`;
-        notes.appendChild(p);
+
+      // Firebase Listener (Realtime-Daten anzeigen)
+      const dbRef = ref(db, 'events/' + eventKey);
+      onValue(dbRef, snapshot => {
+        const data = snapshot.val() || { responsible: "", notes: [] };
+        responsible.value = data.responsible || '';
+        notes.innerHTML = '';
+        data.notes?.forEach(n => {
+          const p = document.createElement('div');
+          p.className = 'note-entry';
+          p.innerHTML = `<strong>${formatTime(n.timestamp)}:</strong> ${n.text}`;
+          notes.appendChild(p);
+        });
       });
 
+      // Speichern in Firebase
       saveBtn.onclick = () => {
         const text = note.value.trim();
+        const updated = {
+          responsible: responsible.value,
+          notes: []
+        };
+
+        const oldData = {};
+        onValue(dbRef, snapshot => {
+          Object.assign(oldData, snapshot.val());
+        }, { onlyOnce: true });
+
+        updated.notes = (oldData.notes || []);
         if (text) {
-          store.notes.push({ text, timestamp: Date.now() });
+          updated.notes.push({ text, timestamp: Date.now() });
         }
-        store.person = responsible.value;
-        localStorage.setItem(key, JSON.stringify(store));
-        renderPlan(); // neu laden
+
+        set(dbRef, updated);
+        note.value = '';
       };
 
       grid.appendChild(responsible);
@@ -102,7 +138,6 @@ function renderPlan() {
       eventEl.appendChild(title);
       eventEl.appendChild(grid);
       eventEl.appendChild(notes);
-
       dayCard.appendChild(eventEl);
     });
 

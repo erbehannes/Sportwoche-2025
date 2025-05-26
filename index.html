@@ -8,6 +8,25 @@
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" href="icons/icon-192.png" />
   <meta name="theme-color" content="#007bff" />
+
+  <!-- Firebase SDKs -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
+    import { getDatabase } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBvDHcYfeQdIwmXd3qnF97K-PQKH4NICf0",
+      authDomain: "sportwoche-sv-langen.firebaseapp.com",
+      projectId: "sportwoche-sv-langen",
+      storageBucket: "sportwoche-sv-langen.firebasestorage.app",
+      messagingSenderId: "529824987070",
+      appId: "1:529824987070:web:d8933f03fdd1a74598abef"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    window._firebase = { app, db }; // Übergibt für spätere Nutzung
+  </script>
 </head>
 <body>
   <div class="app-shell">
@@ -20,7 +39,7 @@
     </main>
   </div>
 
-  <script src="app.js"></script>
+  <!-- Service Worker (optional für PWA) -->
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js')
@@ -28,5 +47,8 @@
         .catch(err => console.error('❌ SW Fehler:', err));
     }
   </script>
+
+  <!-- Main Script -->
+  <script type="module" src="app.js"></script>
 </body>
 </html>
