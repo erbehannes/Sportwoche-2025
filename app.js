@@ -1,8 +1,7 @@
-// Firebase Imports
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
-import { getDatabase, ref, onValue, set, push } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
+import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
 
-// Firebase Config
+// Firebase Konfiguration
 const firebaseConfig = {
   apiKey: "AIzaSyBvDHcYfeQdIwmXd3qnF97K-PQKH4NICf0",
   authDomain: "sportwoche-sv-langen.firebaseapp.com",
@@ -12,11 +11,10 @@ const firebaseConfig = {
   appId: "1:529824987070:web:d8933f03fdd1a74598abef"
 };
 
-// Initialize Firebase
+// Initialisieren
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-// Event-Definitionen
 const events = {
   "Dienstag, 15.07.2025": [
     { time: "19:00", title: "Herrenspiele höhere Klassen" },
@@ -71,7 +69,9 @@ function renderPlan() {
     dayCard.appendChild(dayHeader);
 
     list.forEach((item, i) => {
-      const eventKey = `${day.replace(/[\s,]/g, '_')}_${i}`;
+      const key = `${day.replace(/[\s,]/g, '_')}_${i}`;
+      const dbRef = ref(db, 'events/' + key);
+
       const eventEl = document.createElement('div');
       eventEl.className = 'event';
 
@@ -95,13 +95,11 @@ function renderPlan() {
       const notes = document.createElement('div');
       notes.className = 'notes';
 
-      // Firebase Listener (Realtime-Daten anzeigen)
-      const dbRef = ref(db, 'events/' + eventKey);
       onValue(dbRef, snapshot => {
         const data = snapshot.val() || { responsible: "", notes: [] };
         responsible.value = data.responsible || '';
         notes.innerHTML = '';
-        data.notes?.forEach(n => {
+        (data.notes || []).forEach(n => {
           const p = document.createElement('div');
           p.className = 'note-entry';
           p.innerHTML = `<strong>${formatTime(n.timestamp)}:</strong> ${n.text}`;
@@ -109,26 +107,20 @@ function renderPlan() {
         });
       });
 
-      // Speichern in Firebase
       saveBtn.onclick = () => {
-        const text = note.value.trim();
-        const updated = {
-          responsible: responsible.value,
-          notes: []
-        };
-
-        const oldData = {};
+        const noteText = note.value.trim();
         onValue(dbRef, snapshot => {
-          Object.assign(oldData, snapshot.val());
+          const data = snapshot.val() || { responsible: "", notes: [] };
+          const updated = {
+            responsible: responsible.value,
+            notes: data.notes || []
+          };
+          if (noteText) {
+            updated.notes.push({ text: noteText, timestamp: Date.now() });
+          }
+          set(dbRef, updated);
+          note.value = '';
         }, { onlyOnce: true });
-
-        updated.notes = (oldData.notes || []);
-        if (text) {
-          updated.notes.push({ text, timestamp: Date.now() });
-        }
-
-        set(dbRef, updated);
-        note.value = '';
       };
 
       grid.appendChild(responsible);
